@@ -295,7 +295,7 @@
           <li>You'll be shown images or clues about various findings</li>
           <li>Select the correct answer from multiple choices</li>
           <li>Each question has a time limit - answer quickly for bonus points!</li>
-          <li>Your score will be emailed to the coordinator</li>
+          <li>Your score will be saved to Google Sheets</li>
         </ul>
       </div>
 
@@ -339,15 +339,15 @@
       </div>
 
       <div class="button-group">
-        <button class="btn btn-email" onclick="emailResults()">Resend Results</button>
+        <button class="btn btn-email" onclick="emailResults()">Save Results Again</button>
       </div>
     </div>
   </div>
 
   <script>
     // ===== GAME CONFIGURATION =====
-    // CHANGE THIS to your email where results should be sent
-    const COORDINATOR_EMAIL = 'syafiqah.khairi@kopikenangan.com';
+    // Google Sheets endpoint (Apps Script Web App URL)
+    const GOOGLE_SHEET_URL = 'https://script.google.com/a/macros/kopikenangan.com/s/AKfycbySejmUy5EWUTzTCXsLLQNvTn8rp5sQVhmwwVNXdE5pzRY-d7eR4BhgOqJl4fhqo5qItg/exec';
     const TIME_PER_QUESTION = 15; // seconds per question
 
     // Edit these questions to customize your game
@@ -619,47 +619,40 @@
       emailResults();
     }
 
-    // ===== RESULTS & EMAIL =====
+    // ===== RESULTS & GOOGLE SHEETS =====
     function emailResults() {
+      console.log('emailResults called!');
       const totalTime = (Date.now() - gameState.startTime) / 1000;
       const avgTime = (totalTime / QUESTIONS.length).toFixed(1);
 
-      let details = 'FINAL SCORE: ' + gameState.score + ' points\n';
-      details += 'Correct Answers: ' + gameState.correctAnswers + ' / ' + QUESTIONS.length + '\n';
-      details += 'Average Time: ' + avgTime + 's per question\n\n';
-      details += 'DETAILED ANSWERS:\n';
-      details += '-----------------\n';
-
-      gameState.answers.forEach(ans => {
-        details += '\nQ' + ans.question + ': ' + ans.questionText + '\n';
-        details += 'Your Answer: ' + ans.selectedAnswer + '\n';
-        details += 'Correct Answer: ' + ans.correctAnswer + '\n';
-        details += 'Result: ' + (ans.isCorrect ? 'CORRECT' : 'WRONG') + ' (+' + ans.pointsEarned + ' points)\n';
-        details += 'Time: ' + ans.timeTaken + 's\n';
+      console.log('Sending data to:', GOOGLE_SHEET_URL);
+      console.log('Data:', {
+        playerName: gameState.playerName,
+        score: gameState.score,
+        correctAnswers: gameState.correctAnswers
       });
 
-      const subject = 'Guess the Finding Results - ' + gameState.playerName;
-
-      // Send via Formsubmit.co
-      fetch('https://formsubmit.co/ajax/' + COORDINATOR_EMAIL, {
+      // Send to Google Sheets
+      fetch(GOOGLE_SHEET_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          _subject: subject,
-          Player: gameState.playerName,
-          Date: new Date().toLocaleString(),
-          Score: gameState.score + ' points',
-          'Correct Answers': gameState.correctAnswers + ' / ' + QUESTIONS.length,
-          'Average Time': avgTime + 's',
-          Details: details
+          playerName: gameState.playerName,
+          date: new Date().toLocaleString(),
+          score: gameState.score,
+          correctAnswers: gameState.correctAnswers,
+          totalQuestions: QUESTIONS.length,
+          avgTime: avgTime
         })
       })
-      .then(res => res.json())
-      .then(data => {
-        alert('Results sent successfully!');
+      .then(() => {
+        console.log('Fetch completed');
+        alert('Results saved to Google Sheets!');
       })
       .catch(err => {
-        alert('Failed to send results. Please try again.');
+        console.error('Error:', err);
+        alert('Failed to save results. Please try again.');
       });
     }
 
